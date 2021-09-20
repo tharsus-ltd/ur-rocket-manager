@@ -1,0 +1,11 @@
+fastapi[All]
+pytest
+hypothesis
+pytest-asyncio
+pytest-mock
+aio_pika
+pydantic
+aioredis
+fakeredis
+black
+mypy
