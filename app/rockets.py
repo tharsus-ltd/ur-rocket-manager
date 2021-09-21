@@ -1,3 +1,4 @@
+from app import RF_DENSITY, WALL_THICKNESS
 import json
 from typing import List
 
@@ -15,6 +16,14 @@ def calc_rocket_diameter(num_engines: int) -> float:
     if num_engines == 1:
         return 4
     return (num_engines / 2) * 4
+
+
+def calc_rocket_mass(rocket: Rocket) -> float:
+    fuel = rocket.fuel * RF_DENSITY
+    engine = 8400 * rocket.num_engines
+    dia = calc_rocket_diameter(rocket.num_engines)
+    body = pi * rocket.height * WALL_THICKNESS * (dia - WALL_THICKNESS)
+    return fuel + engine + body
 
 
 def get_key(id: str, username: str) -> str:

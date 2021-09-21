@@ -3,7 +3,7 @@ import pytest
 from hypothesis import given, strategies as st
 
 from app.models import RocketCreate
-from app.rockets import calc_initial_fuel, calc_rocket_diameter, get_key, get_rocket, set_rocket
+from app.rockets import calc_initial_fuel, calc_rocket_diameter, calc_rocket_mass, get_key, get_rocket, set_rocket
 from app import MAX_ENGINES, MAX_HEIGHT, MIN_ENGINES, MIN_HEIGHT
 
 
@@ -22,9 +22,14 @@ def test_fuel_calc(h, e):
     assert calc_initial_fuel(inp) > 0
 
 
+def test_mass_calc(rocket):
+    assert calc_rocket_mass(rocket) > 0
+
+
 @pytest.mark.asyncio
 async def test_set_get_rocket(rocket, handlers):
-    assert (await handlers.redis.exists(get_key(rocket.id))) == 0
-    await set_rocket(rocket)
-    assert (await handlers.redis.exists(get_key(rocket.id))) == 1
-    assert rocket == await get_rocket(rocket.id)
+    username = "test"
+    assert (await handlers.redis.exists(get_key(rocket.id, username))) == 0
+    await set_rocket(rocket, username)
+    assert (await handlers.redis.exists(get_key(rocket.id, username))) == 1
+    assert rocket == await get_rocket(rocket.id, username)

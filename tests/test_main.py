@@ -13,15 +13,16 @@ async def test_rocket_creation(handlers, mocker):
 
         rocket = await create_rocket(
             RocketCreate(
-                num_engines = 4,
-                height = 200
-            )
+                num_engines=4,
+                height=200
+            ),
+            "test"
         )
 
         assert rocket.height == 200
         assert rocket.num_engines == 4
         assert rocket.fuel > 0
 
-        assert await get_rocket(rocket.id) == rocket
+        assert await get_rocket(rocket.id, "test") == rocket
 
         Handlers.send_msg.assert_called_once()
