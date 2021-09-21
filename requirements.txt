@@ -3,9 +3,11 @@ pytest
 hypothesis
 pytest-asyncio
 pytest-mock
+python-jose[cryptography]
 aio_pika
 pydantic
 aioredis
 fakeredis
 black
+flake8
 mypy
