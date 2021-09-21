@@ -8,7 +8,7 @@ from app.models import Rocket, RocketCreate
 
 def calc_initial_fuel(rocket: RocketCreate) -> float:
     dia = calc_rocket_diameter(rocket.num_engines)
-    return rocket.height * pi * (0.5*dia)**2 
+    return rocket.height * pi * (0.5*dia)**2
 
 
 def calc_rocket_diameter(num_engines: int) -> float:
