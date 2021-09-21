@@ -27,3 +27,7 @@ class RocketCreate(BaseModel):
 class Rocket(RocketCreate):
     id: str
     fuel: float
+    altitude: float = 0
+    velocity: float = 0
+    crashed: bool = False
+    max_altitude: float = 0

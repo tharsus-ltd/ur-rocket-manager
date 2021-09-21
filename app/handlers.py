@@ -1,7 +1,9 @@
+import json
 import os
 import aioredis
 
-from aio_pika import connect_robust, Message
+from typing import Any
+from aio_pika import Message, connect_robust
 
 from app.singleton import Singleton
 
@@ -20,3 +22,30 @@ class Handlers(metaclass=Singleton):
             Message(body=msg.encode()),
             routing_key=topic,
         )
+
+    async def launcher(self, callback: Any):
+        queue = await self.channel.declare_queue("rocket-launch")
+        queue.bind(self.channel.default_exchange, "rocket.launched")
+        queue.bind(self.channel.default_exchange, "rocket.updated")
+
+        async with queue.iterator() as q_iter:
+            async for message in q_iter:
+                async with message.process():
+                    data = json.loads(message.body.decode())
+                    rocket = data["rocket"]
+                    username = data["username"]
+
+                    await callback(rocket, username)
+
+    async def crash_check(self, callback: Any):
+        queue = await self.channel.declare_queue("crash-check")
+        queue.bind(self.channel.default_exchange, "rocket.crashed")
+
+        async with queue.iterator() as q_iter:
+            async for message in q_iter:
+                async with message.process():
+                    data = json.loads(message.body.decode())
+                    rocket = data["rocket"]
+                    username = data["username"]
+
+                    await callback(rocket, username)

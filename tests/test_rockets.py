@@ -1,10 +1,14 @@
 import pytest
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
-from app.models import RocketCreate
-from app.rockets import calc_initial_fuel, calc_rocket_diameter, calc_rocket_mass, get_key, get_rocket, set_rocket
 from app import MAX_ENGINES, MAX_HEIGHT, MIN_ENGINES, MIN_HEIGHT
+from app.models import RocketCreate
+from app.handlers import Handlers
+from app.rockets import (calc_initial_fuel, calc_rocket_diameter,
+                         calc_rocket_mass, crash_rocket, get_key, get_rocket,
+                         set_rocket)
 
 
 @given(st.integers(MIN_ENGINES, MAX_ENGINES))
@@ -24,6 +28,13 @@ def test_fuel_calc(h, e):
 
 def test_mass_calc(rocket):
     assert calc_rocket_mass(rocket) > 0
+
+
+@pytest.mark.asyncio
+async def test_crash_rocket(rocket, handlers, mocker):
+    with mocker.patch.object(Handlers, "send_msg"):
+        await crash_rocket(rocket, "test")
+        assert rocket.crashed
 
 
 @pytest.mark.asyncio
