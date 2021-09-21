@@ -5,7 +5,7 @@ from aio_pika import connect_robust, Message
 
 from app.singleton import Singleton
 
-REDIS_SERVICE = os.environ.get("REDIS_SERVICE","rocket_man_db")
+REDIS_SERVICE = os.environ.get("REDIS_SERVICE", "rocket_man_db")
 
 
 class Handlers(metaclass=Singleton):
