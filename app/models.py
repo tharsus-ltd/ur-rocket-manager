@@ -3,7 +3,7 @@ from pydantic import BaseModel, validator
 from app import MAX_ENGINES, MAX_HEIGHT, MIN_ENGINES, MIN_HEIGHT
 
 
-class RocketCreate(BaseModel):
+class RocketBase(BaseModel):
     num_engines: int
     height: int
 
@@ -24,10 +24,11 @@ class RocketCreate(BaseModel):
         return v
 
 
-class Rocket(RocketCreate):
+class Rocket(RocketBase):
     id: str
     fuel: float
     altitude: float = 0
     velocity: float = 0
     crashed: bool = False
+    launched: bool = False
     max_altitude: float = 0

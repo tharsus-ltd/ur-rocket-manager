@@ -6,10 +6,10 @@ from math import pi
 
 from app import MASS_FLOW, RF_DENSITY, TIME_DELTA, WALL_THICKNESS
 from app.handlers import Handlers
-from app.models import Rocket, RocketCreate
+from app.models import Rocket, RocketBase
 
 
-def calc_initial_fuel(rocket: RocketCreate) -> float:
+def calc_initial_fuel(rocket: RocketBase) -> float:
     dia = calc_rocket_diameter(rocket.num_engines)
     return rocket.height * pi * (0.5*dia)**2
 
@@ -109,7 +109,7 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
         "rocket": rocket.dict(),
         "username": username
     }
-    await Handlers().send_msg(json.dumps(msg), "rocket.updated")
+    await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.updated")
     return rocket
 
 
@@ -121,5 +121,5 @@ async def crash_rocket(rocket: Rocket, username: str) -> Rocket:
         "rocket": rocket.dict(),
         "username": username
     }
-    await Handlers().send_msg(json.dumps(msg), "rocket.updated")
+    await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.crashed")
     return rocket

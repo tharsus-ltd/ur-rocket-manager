@@ -25,8 +25,8 @@ class Handlers(metaclass=Singleton):
 
     async def launcher(self, callback: Any):
         queue = await self.channel.declare_queue("rocket-launch")
-        queue.bind(self.channel.default_exchange, "rocket.launched")
-        queue.bind(self.channel.default_exchange, "rocket.updated")
+        await queue.bind(self.channel.default_exchange, "rocket.*.launched")
+        await queue.bind(self.channel.default_exchange, "rocket.*.updated")
 
         async with queue.iterator() as q_iter:
             async for message in q_iter:
@@ -39,7 +39,7 @@ class Handlers(metaclass=Singleton):
 
     async def crash_check(self, callback: Any):
         queue = await self.channel.declare_queue("crash-check")
-        queue.bind(self.channel.default_exchange, "rocket.crashed")
+        await queue.bind(self.channel.default_exchange, "rocket.*.crashed")
 
         async with queue.iterator() as q_iter:
             async for message in q_iter:

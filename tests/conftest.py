@@ -2,7 +2,7 @@ import uuid
 import pytest
 import fakeredis.aioredis
 
-from app.models import Rocket, RocketCreate
+from app.models import Rocket, RocketBase
 from app.rockets import calc_initial_fuel
 from app.handlers import Handlers
 
@@ -16,7 +16,7 @@ def handlers():
 
 @pytest.fixture
 def rocket():
-    cr = RocketCreate(
+    cr = RocketBase(
         height=200,
         num_engines=4,
     )

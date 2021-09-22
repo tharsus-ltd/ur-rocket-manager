@@ -2,7 +2,7 @@ import pytest
 
 from app.handlers import Handlers
 from app.rockets import get_rocket, set_rocket, update_rocket
-from app.models import RocketCreate
+from app.models import RocketBase
 from app.main import create_rocket, launch_rocket
 
 
@@ -12,7 +12,7 @@ async def test_rocket_creation(handlers, mocker):
     with mocker.patch.object(Handlers, "send_msg"):
 
         rocket = await create_rocket(
-            RocketCreate(
+            RocketBase(
                 num_engines=4,
                 height=200
             ),

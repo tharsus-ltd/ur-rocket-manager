@@ -4,7 +4,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 
 from app import MAX_ENGINES, MAX_HEIGHT, MIN_ENGINES, MIN_HEIGHT
-from app.models import RocketCreate
+from app.models import RocketBase
 from app.handlers import Handlers
 from app.rockets import (calc_initial_fuel, calc_rocket_diameter,
                          calc_rocket_mass, crash_rocket, get_key, get_rocket,
@@ -22,7 +22,7 @@ def test_diameter(e):
 
 @given(st.integers(MIN_HEIGHT, MAX_HEIGHT), st.integers(MIN_ENGINES, MAX_ENGINES))
 def test_fuel_calc(h, e):
-    inp = RocketCreate(height=h, num_engines=e)
+    inp = RocketBase(height=h, num_engines=e)
     assert calc_initial_fuel(inp) > 0
 
 

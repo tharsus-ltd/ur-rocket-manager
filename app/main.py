@@ -3,16 +3,33 @@ import json
 from typing import List
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from app import __root__, __service__, __version__
 from app.handlers import Handlers
-from app.models import Rocket, RocketCreate
+from app.models import Rocket, RocketBase
 from app.rockets import (calc_initial_fuel, crash_rocket, get_rocket,
                          get_rockets_for_user, set_rocket, update_rocket)
 from app.security import get_username_from_token
 
 app = FastAPI(title=__service__, root_path=__root__, version=__version__)
+
+origins = [
+    "http://localhost",
+    "http://localhost:8001",
+    "http://localhost:8002",
+    "http://localhost:5000",
+    "ws://*"
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -30,14 +47,14 @@ async def root():
 
 
 @app.get("/status")
-async def status():
+async def get_status():
     # Add checks to ensure the system is running
     return False
 
 
 @app.post("/rockets", response_model=Rocket)
 async def create_rocket(
-    inp_rocket: RocketCreate,
+    inp_rocket: RocketBase,
     username: str = Depends(get_username_from_token)
 ):
     # Create a rocket, start by checking parameters
@@ -59,7 +76,27 @@ async def get_user_rockets(
     return get_rockets_for_user(username)
 
 
-@app.delete("/rockets/{id}")
+@app.put("/rockets/{id}", response_model=Rocket)
+async def edit_rocket(
+    id: str,
+    new_rocket: RocketBase,
+    username: str = Depends(get_username_from_token)
+):
+    rocket = await get_rocket(id, username)
+
+    if rocket.launched or rocket.altitude > 0 or rocket.crashed:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Cannot change a rocket once it has been launched",
+        )
+    rocket.height = new_rocket.height
+    rocket.num_engines = new_rocket.num_engines
+    rocket.fuel = calc_initial_fuel(new_rocket)
+    await set_rocket(rocket, username)
+    return rocket
+
+
+@app.delete("/rockets/{id}", response_model=Rocket)
 async def delete_rocket(
     id: str,
     username: str = Depends(get_username_from_token)
@@ -74,11 +111,38 @@ async def launch_rocket(
 ):
     # 1. Get rocket from database with id
     rocket = await get_rocket(id, username)
+    rocket.launched = True
+    await set_rocket(rocket, username)
 
     # 3. Send rocket launch event
     msg = {
         "rocket": rocket.dict(),
         "username": username
     }
-    await Handlers().send_msg(json.dumps(msg), "rocket.launched")
+    await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.launched")
     return rocket
+
+
+@app.websocket("/rocket/{id}/ws")
+async def rocket_realtime(
+    websocket: WebSocket,
+    id: str
+):
+    # Accept the websocket
+    await websocket.accept()
+
+    try:
+        # Create a queue to monitor the rocket update events:
+        queue = await Handlers().channel.declare_queue("rocket-realtime")
+        await queue.bind(Handlers().channel.default_exchange, f"rocket.{id}.launched")
+        await queue.bind(Handlers().channel.default_exchange, f"rocket.{id}.updated")
+        await queue.bind(Handlers().channel.default_exchange, f"rocket.{id}.crashed")
+
+        # if we get a rocket update event, send this out:
+        async with queue.iterator() as q_iter:
+            async for message in q_iter:
+                async with message.process():
+                    await websocket.send_text(message.body.decode())
+
+    except WebSocketDisconnect:
+        pass
