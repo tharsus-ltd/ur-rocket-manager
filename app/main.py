@@ -65,7 +65,7 @@ async def create_rocket(
 async def get_user_rockets(
     *, username: str = Depends(get_username_from_token)
 ):
-    return get_rockets_for_user(username)
+    return await get_rockets_for_user(username)
 
 
 @app.put("/rockets/{id}", response_model=Rocket)
@@ -111,7 +111,9 @@ async def launch_rocket(
         "rocket": rocket.dict(),
         "username": username
     }
-    await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.launched")
+    topic = f"rocket.{rocket.id}.launched"
+    await Handlers().send_msg(json.dumps(msg), topic)
+    print(f"send msg: {msg} to: {topic}")
     return rocket
 
 
@@ -125,7 +127,7 @@ async def rocket_realtime(
 
     try:
         # Create a queue to monitor the rocket update events:
-        queue = await Handlers().channel.declare_queue("rocket-realtime")
+        queue = await Handlers().channel.declare_queue(f"realtime-{str(uuid4())}")
         await queue.bind(Handlers().exchange, f"rocket.{id}.launched")
         await queue.bind(Handlers().exchange, f"rocket.{id}.updated")
         await queue.bind(Handlers().exchange, f"rocket.{id}.crashed")
@@ -137,4 +139,4 @@ async def rocket_realtime(
                     await websocket.send_text(message.body.decode())
 
     except WebSocketDisconnect:
-        pass
+        await queue.delete()

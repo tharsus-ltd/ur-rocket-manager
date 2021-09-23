@@ -32,6 +32,7 @@ class Handlers(metaclass=Singleton):
         async with queue.iterator() as q_iter:
             async for message in q_iter:
                 async with message.process():
+                    print(f"got message: {message.body.decode()}")
                     data = json.loads(message.body.decode())
                     rocket = data["rocket"]
                     username = data["username"]
