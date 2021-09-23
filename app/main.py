@@ -113,6 +113,7 @@ async def launch_rocket(
     # 1. Get rocket from database with id
     rocket = await get_rocket(id, username)
     rocket.launched = True
+    rocket.status = "Lift off! 🤘"
     await set_rocket(rocket, username)
 
     # 3. Send rocket launch event

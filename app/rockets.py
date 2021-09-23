@@ -101,8 +101,6 @@ async def delete_rocket(id: str, username: str):
 
 async def update_rocket(rocket: Rocket, username: str) -> Rocket:
 
-    logger.info(f"updating rocket: {rocket.id}")
-
     if rocket.crashed:
         return rocket
 
@@ -118,8 +116,8 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
     rocket.velocity += acc * TIME_DELTA
 
     if rocket.fuel > 0:
+        rocket.status = "Out of fuel 😭⛽"
         d_fuel = calc_rocket_fuel(rocket)
-        logger.info(f"Fuel reduction: {d_fuel}")
         rocket.fuel -= d_fuel
         if rocket.fuel < 0:
             rocket.fuel = 0
@@ -130,7 +128,7 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
 
     # Save in database
     if rocket.altitude <= 0:
-        rocket = await crash_rocket(rocket, username)
+        rocket = await crash_rocket(rocket, username, "Crash landed 🔥🚒")
         rocket.altitude = 0
 
     await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
@@ -143,9 +141,10 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
     return rocket
 
 
-async def crash_rocket(rocket: Rocket, username: str) -> Rocket:
+async def crash_rocket(rocket: Rocket, username: str, status: str) -> Rocket:
     logger.info(f"crashing rocket: {rocket.id}")
     rocket.crashed = True
+    rocket.status = status
 
     await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
     msg = {

@@ -68,7 +68,9 @@ class Handlers(metaclass=Singleton):
                         rocket = Rocket(**data["rocket"])
                         username = data["username"]
 
+                        status = data["status"] if "status" in data else rocket.status
+
                         if not rocket.crashed:
-                            await crash_rocket(rocket, username)
+                            await crash_rocket(rocket, username, status)
                     except Exception as e:
                         logging.error(e)

@@ -32,3 +32,4 @@ class Rocket(RocketBase):
     crashed: bool = False
     launched: bool = False
     max_altitude: float = 0
+    status: str = "Ready! 🚀"
