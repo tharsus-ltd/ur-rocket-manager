@@ -7,6 +7,7 @@ python-jose[cryptography]
 aio_pika
 pydantic
 aioredis
+coloredlogs
 fakeredis
 black
 flake8

@@ -7,7 +7,7 @@ from app import MAX_ENGINES, MAX_HEIGHT, MIN_ENGINES, MIN_HEIGHT
 from app.models import RocketBase
 from app.handlers import Handlers
 from app.rockets import (calc_initial_fuel, calc_rocket_diameter,
-                         calc_rocket_mass, crash_rocket, get_key, get_rocket,
+                         calc_rocket_mass, crash_rocket, generate_unique_id, get_key, get_rocket,
                          set_rocket)
 
 
@@ -44,3 +44,10 @@ async def test_set_get_rocket(rocket, handlers):
     await set_rocket(rocket, username)
     assert (await handlers.redis.exists(get_key(rocket.id, username))) == 1
     assert rocket == await get_rocket(rocket.id, username)
+
+
+@pytest.mark.asyncio
+async def test_create_id(handlers):
+    id1 = await generate_unique_id()
+    id2 = await generate_unique_id()
+    assert id1 != id2

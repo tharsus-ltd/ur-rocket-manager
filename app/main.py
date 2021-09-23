@@ -1,7 +1,8 @@
 import asyncio
 import json
+import sys
+import logging
 from typing import List
-from uuid import uuid4
 
 from fastapi import Depends, FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,8 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app import __root__, __service__, __version__, __startup_time__
 from app.handlers import Handlers
 from app.models import Rocket, RocketBase
-from app.rockets import (calc_initial_fuel, crash_rocket, get_rocket,
-                         get_rockets_for_user, set_rocket, update_rocket)
+from app.rockets import (calc_initial_fuel, generate_unique_id, get_rocket,
+                         get_rockets_for_user, set_rocket)
 from app.security import get_username_from_token
 
 app = FastAPI(title=__service__, root_path=__root__, version=__version__)
@@ -23,14 +24,22 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)],
+)
+
+logger = logging.getLogger(__name__)
+
 
 @app.on_event("startup")
 async def startup():
     # Wait for RabbitMQ and Redis
     await asyncio.sleep(__startup_time__)
     await Handlers().init()
-    asyncio.create_task(Handlers().crash_check(crash_rocket))
-    asyncio.create_task(Handlers().launcher(update_rocket))
+    asyncio.create_task(Handlers().crash_check())
+    asyncio.create_task(Handlers().launcher())
 
 
 @app.get("/")
@@ -50,14 +59,14 @@ async def create_rocket(
     username: str = Depends(get_username_from_token)
 ):
     # Create a rocket, start by checking parameters
-    id = str(uuid4())
+    id = await generate_unique_id(50)
     rocket = Rocket(**inp_rocket.dict(), id=id, fuel=calc_initial_fuel(inp_rocket))
     await set_rocket(rocket, username)
     msg = {
         "rocket": rocket.dict(),
         "username": username
     }
-    await Handlers().send_msg(json.dumps(msg), "rocket.created")
+    await Handlers().send_msg(json.dumps(msg), f"rocket.{id}.created")
     return rocket
 
 
@@ -113,7 +122,6 @@ async def launch_rocket(
     }
     topic = f"rocket.{rocket.id}.launched"
     await Handlers().send_msg(json.dumps(msg), topic)
-    print(f"send msg: {msg} to: {topic}")
     return rocket
 
 
@@ -127,7 +135,7 @@ async def rocket_realtime(
 
     try:
         # Create a queue to monitor the rocket update events:
-        queue = await Handlers().channel.declare_queue(f"realtime-{str(uuid4())}")
+        queue = await Handlers().channel.declare_queue(f"realtime-{id}")
         await queue.bind(Handlers().exchange, f"rocket.{id}.launched")
         await queue.bind(Handlers().exchange, f"rocket.{id}.updated")
         await queue.bind(Handlers().exchange, f"rocket.{id}.crashed")
@@ -136,6 +144,7 @@ async def rocket_realtime(
         async with queue.iterator() as q_iter:
             async for message in q_iter:
                 async with message.process():
+                    logger.info("rocket updated, sending msg to ws")
                     await websocket.send_text(message.body.decode())
 
     except WebSocketDisconnect:
