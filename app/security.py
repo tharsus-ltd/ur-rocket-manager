@@ -15,7 +15,13 @@ async def get_username_from_token(token: str = Depends(oauth2_scheme)) -> str:
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, USER_SECRET, algorithms=["HS256"])
+        payload = jwt.decode(
+            token,
+            USER_SECRET,
+            audience="micro-rocket",
+            issuer="user-manager",
+            algorithms=["HS256"]
+        )
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception

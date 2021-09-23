@@ -3,6 +3,7 @@ import os
 __version__ = '0.0.1'
 __service__ = os.environ.get("SERVICE_NAME", "Rocket Manager")
 __root__ = os.environ.get("ROOT_PATH", "/")
+__startup_time__ = int(os.environ.get("STARTUP_TIME", "10"))
 
 USER_SECRET = os.environ.get("SECRET_KEY", "e9629f658c37859ab9d74680a3480b99265c7d4c89224280cb44a255c320661f")
 USER_URL = os.environ.get("USER_URL", "http://user_manager/token")

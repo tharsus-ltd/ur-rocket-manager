@@ -16,6 +16,7 @@ class Handlers(metaclass=Singleton):
         self.redis = aioredis.from_url(f"redis://{REDIS_SERVICE}", encoding="utf-8", decode_responses=True)
         self.rabbitmq = await connect_robust("amqp://guest:guest@rabbitmq/")
         self.channel = await self.rabbitmq.channel()
+        self.exchange = await self.channel.declare_exchange("micro-rockets")
 
     async def send_msg(self, msg: str, topic: str):
         await self.channel.default_exchange.publish(
@@ -25,8 +26,8 @@ class Handlers(metaclass=Singleton):
 
     async def launcher(self, callback: Any):
         queue = await self.channel.declare_queue("rocket-launch")
-        await queue.bind(self.channel.default_exchange, "rocket.*.launched")
-        await queue.bind(self.channel.default_exchange, "rocket.*.updated")
+        await queue.bind(self.exchange, "rocket.*.launched")
+        await queue.bind(self.exchange, "rocket.*.updated")
 
         async with queue.iterator() as q_iter:
             async for message in q_iter:
@@ -39,7 +40,7 @@ class Handlers(metaclass=Singleton):
 
     async def crash_check(self, callback: Any):
         queue = await self.channel.declare_queue("crash-check")
-        await queue.bind(self.channel.default_exchange, "rocket.*.crashed")
+        await queue.bind(self.exchange, "rocket.*.crashed")
 
         async with queue.iterator() as q_iter:
             async for message in q_iter:

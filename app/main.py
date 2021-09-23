@@ -6,7 +6,7 @@ from uuid import uuid4
 from fastapi import Depends, FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import __root__, __service__, __version__
+from app import __root__, __service__, __version__, __startup_time__
 from app.handlers import Handlers
 from app.models import Rocket, RocketBase
 from app.rockets import (calc_initial_fuel, crash_rocket, get_rocket,
@@ -15,17 +15,9 @@ from app.security import get_username_from_token
 
 app = FastAPI(title=__service__, root_path=__root__, version=__version__)
 
-origins = [
-    "http://localhost",
-    "http://localhost:8001",
-    "http://localhost:8002",
-    "http://localhost:5000",
-    "ws://*"
-]
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,7 +27,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup():
     # Wait for RabbitMQ and Redis
-    await asyncio.sleep(20)
+    await asyncio.sleep(__startup_time__)
     await Handlers().init()
     asyncio.create_task(Handlers().crash_check(crash_rocket))
     asyncio.create_task(Handlers().launcher(update_rocket))
@@ -134,9 +126,9 @@ async def rocket_realtime(
     try:
         # Create a queue to monitor the rocket update events:
         queue = await Handlers().channel.declare_queue("rocket-realtime")
-        await queue.bind(Handlers().channel.default_exchange, f"rocket.{id}.launched")
-        await queue.bind(Handlers().channel.default_exchange, f"rocket.{id}.updated")
-        await queue.bind(Handlers().channel.default_exchange, f"rocket.{id}.crashed")
+        await queue.bind(Handlers().exchange, f"rocket.{id}.launched")
+        await queue.bind(Handlers().exchange, f"rocket.{id}.updated")
+        await queue.bind(Handlers().exchange, f"rocket.{id}.crashed")
 
         # if we get a rocket update event, send this out:
         async with queue.iterator() as q_iter:

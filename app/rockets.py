@@ -53,18 +53,14 @@ async def rocket_exists(id: str, username: str) -> bool:
 
 
 async def set_rocket(rocket: Rocket, username):
-    if await rocket_exists(rocket.id, username):
-        raise KeyError(f"Rocket with id: {rocket.id} already exists in database")
-    else:
-        await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
+    await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
 
 
 async def get_rockets_for_user(username: str) -> List[Rocket]:
     rockets: List[Rocket] = []
-    for key in Handlers().redis.hscan(match=f"{username}:*"):
-        raw = json.loads(Handlers().redis.get(key))
-        rockets.append(Rocket(**raw))
-
+    async for key in Handlers().redis.scan(f"{username}:*"):
+        raw = await Handlers().redis.get(key)
+        rockets.append(Rocket(**json.loads(raw)))
     return rockets
 
 
