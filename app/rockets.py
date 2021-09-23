@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 def calc_initial_fuel(rocket: RocketBase) -> float:
     dia = calc_rocket_diameter(rocket.num_engines)
-    return rocket.height * pi * (0.5*dia)**2
+    return (rocket.height * pi * (0.5*dia)**2)*0.25
 
 
 def calc_rocket_diameter(num_engines: int) -> float:
