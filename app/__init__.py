@@ -1,6 +1,6 @@
 import os
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 __service__ = os.environ.get("SERVICE_NAME", "Rocket Manager")
 __root__ = os.environ.get("ROOT_PATH", "/")
 __startup_time__ = int(os.environ.get("STARTUP_TIME", "10"))
