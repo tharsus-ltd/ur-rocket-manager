@@ -23,7 +23,6 @@ class Handlers(metaclass=Singleton):
         self.exchange = await self.channel.declare_exchange("micro-rockets", ExchangeType.TOPIC, durable=True)
 
     async def send_msg(self, msg: str, topic: str):
-        logging.info(f"sending msg: {msg} to topic: {topic}")
         await self.exchange.publish(
             Message(body=msg.encode()),
             routing_key=topic,
@@ -63,14 +62,11 @@ class Handlers(metaclass=Singleton):
         async with queue.iterator() as q_iter:
             async for message in q_iter:
                 async with message.process():
-                    try:
-                        data = json.loads(message.body.decode())
-                        rocket = Rocket(**data["rocket"])
-                        username = data["username"]
+                    data = json.loads(message.body.decode())
+                    rocket = Rocket(**data["rocket"])
+                    username = data["username"]
 
-                        status = data["status"] if "status" in data else rocket.status
+                    status = data["status"] if "status" in data else rocket.status
 
-                        if not rocket.crashed:
-                            await crash_rocket(rocket, username, status)
-                    except Exception as e:
-                        logging.error(e)
+                    if not rocket.crashed:
+                        await crash_rocket(rocket, username, status)

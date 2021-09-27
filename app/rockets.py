@@ -116,18 +116,18 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
     rocket.velocity += acc * TIME_DELTA
 
     if rocket.fuel > 0:
-        rocket.status = "Out of fuel 😭⛽"
         d_fuel = calc_rocket_fuel(rocket)
         rocket.fuel -= d_fuel
         if rocket.fuel < 0:
             rocket.fuel = 0
+            rocket.status = "Out of fuel 😭⛽"
 
     # Update max altitude
     if rocket.altitude > rocket.max_altitude:
         rocket.max_altitude = rocket.altitude
 
     # Save in database
-    if rocket.altitude <= 0:
+    if rocket.fuel <= 0 and rocket.altitude <= 0:
         rocket = await crash_rocket(rocket, username, "Crash landed 🔥🚒")
         rocket.altitude = 0
 
@@ -151,5 +151,5 @@ async def crash_rocket(rocket: Rocket, username: str, status: str) -> Rocket:
         "rocket": rocket.dict(),
         "username": username
     }
-    await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.crashed")
+    await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.updated")
     return rocket

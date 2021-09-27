@@ -139,13 +139,11 @@ async def rocket_realtime(
         queue = await Handlers().channel.declare_queue(f"realtime-{id}")
         await queue.bind(Handlers().exchange, f"rocket.{id}.launched")
         await queue.bind(Handlers().exchange, f"rocket.{id}.updated")
-        await queue.bind(Handlers().exchange, f"rocket.{id}.crashed")
 
         # if we get a rocket update event, send this out:
         async with queue.iterator() as q_iter:
             async for message in q_iter:
                 async with message.process():
-                    logger.info("rocket updated, sending msg to ws")
                     await websocket.send_text(message.body.decode())
 
     except WebSocketDisconnect:
