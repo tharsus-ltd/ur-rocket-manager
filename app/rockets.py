@@ -107,6 +107,17 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
     # Pause for dt seconds to allow the rocket to "move"
     await asyncio.sleep(TIME_DELTA)
 
+    # Grab the rocket from the db to check if it crashed while we waited
+    latest_rocket = await get_rocket(rocket.id, username)
+    if latest_rocket.crashed:
+        # Make sure the frontend gets updated:
+        msg = {
+            "rocket": latest_rocket.dict(),
+            "username": username
+        }
+        await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.updated")
+        return latest_rocket
+
     # Linear acceleration
     acc = calc_acceleration(rocket)
     d_pos = 0.5 * acc * TIME_DELTA**2 + rocket.velocity * TIME_DELTA
