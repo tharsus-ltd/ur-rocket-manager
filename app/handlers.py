@@ -11,6 +11,7 @@ from opentracing.ext import tags
 from typing import Any, Dict
 from aio_pika import Message, connect_robust, ExchangeType
 from opentracing.propagation import Format, InvalidCarrierException, SpanContextCorruptedException
+from opentracing.tracer import follows_from
 
 from app.singleton import Singleton
 from app.models import Rocket
@@ -31,7 +32,7 @@ def message_tracer(message: IncomingMessage):
 
     with opentracing.tracer.start_active_span(
         message.routing_key,
-        child_of=span_ctx,
+        references=follows_from(span_ctx),
         finish_on_close=True
     ) as scope:
         span = scope.span
