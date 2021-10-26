@@ -4,17 +4,23 @@ import sys
 import logging
 from typing import List
 
-from fastapi import Depends, FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect
+from jaeger_client import Config
+from opentracing.scope_managers.contextvars import ContextVarsScopeManager
+
+from fastapi import Depends, FastAPI, status, HTTPException, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import __root__, __service__, __version__, __startup_time__
+from app import __root__, __service__, __version__, __startup_time__, JAEGER_HOST, JAEGER_PORT
 from app.handlers import Handlers
 from app.models import Rocket, RocketBase
 from app.rockets import (calc_initial_fuel, generate_unique_id, get_rocket,
                          get_rockets_for_user, set_rocket)
 from app.security import get_username_from_token
+from app.tracing import TracingMiddleWare
+
 
 app = FastAPI(title=__service__, root_path=__root__, version=__version__)
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +39,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+config = Config(
+    config={
+        'sampler': {
+            'type': 'const',
+            'param': 1,
+        },
+        'local_agent': {
+            'reporting_host': JAEGER_HOST,
+            'reporting_port': JAEGER_PORT,
+        },
+        'logging': True,
+    },
+    scope_manager=ContextVarsScopeManager(),
+    service_name=__service__,
+    validate=True,
+)
+
+jaeger_tracer = config.initialize_tracer()
+app.add_middleware(TracingMiddleWare, tracer=jaeger_tracer)
+
+
 @app.on_event("startup")
 async def startup():
     # Wait for RabbitMQ and Redis
@@ -43,14 +70,13 @@ async def startup():
 
 
 @app.get("/")
-async def root():
-    return {"Service": __service__, "Version": __version__}
+async def root(request: Request):
+    return {"Service": __service__, "Version": __version__, "Phrase": "Hello!"}
 
 
 @app.get("/status")
 async def get_status():
-    # Add checks to ensure the system is running
-    return False
+    return True
 
 
 @app.post("/rockets", response_model=Rocket)

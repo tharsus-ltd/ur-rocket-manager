@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import opentracing
 
 from typing import List
 from math import pi
@@ -41,11 +42,15 @@ def calc_exhaust_vel(rocket: Rocket) -> float:
 
 
 async def generate_unique_id(retries: int = 10) -> str:
-    for _ in range(retries):
-        new_id = get_random_word()
-        if not (await rocket_id_exists(new_id)):
-            return new_id
-    raise RuntimeError("Couldnt get unique id for rocket")
+    with opentracing.tracer.start_active_span("generate_unique_id") as scope:
+        for _ in range(retries):
+            new_id = get_random_word()
+            if not (await rocket_id_exists(new_id)):
+                scope.span.set_tag("rocket_id", new_id)
+                return new_id
+        err = "Couldnt get unique id for rocket"
+        scope.span.log_kv({"error": err})
+        raise RuntimeError("Couldnt get unique id for rocket")
 
 
 def calc_acceleration(rocket: Rocket) -> float:
@@ -66,41 +71,58 @@ def get_key(id: str, username: str) -> str:
 
 
 async def rocket_exists(id: str, username: str) -> bool:
-    return (await Handlers().redis.exists(get_key(id, username))) >= 1
+    with opentracing.tracer.start_active_span("rocket_exists") as scope:
+        res = (await Handlers().redis.exists(get_key(id, username))) >= 1
+        scope.span.log_kv({"result": res})
+        return res
 
 
 async def rocket_id_exists(id: str) -> bool:
-    return (await Handlers().redis.exists(f"*:{id}")) >= 1
+    with opentracing.tracer.start_active_span("rocket_id_exists") as scope:
+        res = (await Handlers().redis.exists(f"*:{id}")) >= 1
+        scope.span.log_kv({"result": res})
+        return res
 
 
 async def set_rocket(rocket: Rocket, username):
-    await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
+    with opentracing.tracer.start_active_span("set_rocket") as scope:
+        scope.span.log_kv(rocket.dict())
+        await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
 
 
 async def get_rockets_for_user(username: str) -> List[Rocket]:
-    rockets: List[Rocket] = []
-    async for key in Handlers().redis.scan_iter(f"{username}:*"):
-        raw = await Handlers().redis.get(key)
-        rockets.append(Rocket(**json.loads(raw)))
-    return rockets
+    with opentracing.tracer.start_active_span("get_rockets_for_user") as scope:
+        rockets: List[Rocket] = []
+        scope.span.set_tag("user", username)
+        async for key in Handlers().redis.scan_iter(f"{username}:*"):
+            raw = await Handlers().redis.get(key)
+            rockets.append(Rocket(**json.loads(raw)))
+        scope.span.set_tag("rockets", len(rockets))
+        return rockets
 
 
 async def get_rocket(id: str, username: str) -> Rocket:
-    if await rocket_exists(id, username):
-        raw = await Handlers().redis.get(get_key(id, username))
-        return Rocket(**json.loads(raw))
-    else:
-        raise KeyError(f"Rocket with id: {id} not found")
+    with opentracing.tracer.start_active_span("get_rocket") as scope:
+        if await rocket_exists(id, username):
+            raw = await Handlers().redis.get(get_key(id, username))
+            rocket = Rocket(**json.loads(raw))
+            scope.span.log_kv(rocket.dict())
+            return rocket
+        else:
+            err = f"Rocket with id: {id} not found"
+            scope.span.log_kv({"error": err})
+            raise KeyError(err)
 
 
 async def delete_rocket(id: str, username: str):
-    rocket = get_rocket(id, username)
-    await Handlers().redis.delete(get_key(id, username))
-    return rocket
+    with opentracing.tracer.start_active_span("delete_rocket") as scope:
+        rocket = await get_rocket(id, username)
+        await Handlers().redis.delete(get_key(id, username))
+        scope.span.log_kv(rocket.dict())
+        return rocket
 
 
 async def update_rocket(rocket: Rocket, username: str) -> Rocket:
-
     if rocket.crashed:
         return rocket
 
@@ -142,25 +164,30 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
         rocket = await crash_rocket(rocket, username, "Crash landed 🔥🚒")
         rocket.altitude = 0
 
-    await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
-    msg = {
-        "rocket": rocket.dict(),
-        "username": username
-    }
+    with opentracing.tracer.start_active_span("update_rocket") as scope:
+        scope.span.log_kv(rocket.dict())
+        await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
+        msg = {
+            "rocket": rocket.dict(),
+            "username": username
+        }
 
     await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.updated")
     return rocket
 
 
 async def crash_rocket(rocket: Rocket, username: str, status: str) -> Rocket:
-    logger.info(f"crashing rocket: {rocket.id}")
-    rocket.crashed = True
-    rocket.status = status
+    with opentracing.tracer.start_active_span("crash_rocket") as scope:
 
-    await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
-    msg = {
-        "rocket": rocket.dict(),
-        "username": username
-    }
-    await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.updated")
-    return rocket
+        rocket.crashed = True
+        rocket.status = status
+
+        scope.span.log_kv(rocket.dict())
+
+        await Handlers().redis.set(get_key(rocket.id, username), rocket.json())
+        msg = {
+            "rocket": rocket.dict(),
+            "username": username
+        }
+        await Handlers().send_msg(json.dumps(msg), f"rocket.{rocket.id}.updated")
+        return rocket
