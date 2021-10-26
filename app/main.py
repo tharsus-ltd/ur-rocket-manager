@@ -2,7 +2,6 @@ import asyncio
 import json
 import sys
 import logging
-import opentracing
 from typing import List
 
 from jaeger_client import Config
@@ -68,12 +67,6 @@ async def startup():
     await Handlers().init()
     asyncio.create_task(Handlers().crash_check())
     asyncio.create_task(Handlers().launcher())
-
-    with opentracing.tracer.start_active_span('TestSpan', ignore_active_span=True) as scope:
-        scope.span.log_event('test message', payload={'life': 42})
-
-        with opentracing.tracer.start_active_span('ChildSpan', child_of=scope.span) as child_scope:
-            child_scope.span.log_event('down below')
 
 
 @app.get("/")
