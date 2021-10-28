@@ -57,6 +57,7 @@ class Handlers(metaclass=Singleton):
             scope.span.set_tag(tags.MESSAGE_BUS_DESTINATION, topic)
             scope.span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_PRODUCER)
             scope.span.set_tag(tags.COMPONENT, "amqp")
+            scope.span.log_kv({"message": msg})
             await self.exchange.publish(
                 Message(body=msg.encode(), headers=headers),
                 routing_key=topic,
