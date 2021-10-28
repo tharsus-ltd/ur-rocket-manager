@@ -50,11 +50,13 @@ class Handlers(metaclass=Singleton):
         self.exchange = await self.channel.declare_exchange("micro-rockets", ExchangeType.TOPIC, durable=True)
 
     async def send_msg(self, msg: str, topic: str, propagate_trace: bool = True):
-        with opentracing.tracer.start_active_span("send_msg") as scope:
+        with opentracing.tracer.start_active_span(topic) as scope:
             headers: Dict[str, Any] = {}
             if propagate_trace:
                 opentracing.tracer.inject(scope.span, Format.TEXT_MAP, headers)
-            scope.span.set_tag("topic", topic)
+            scope.span.set_tag(tags.MESSAGE_BUS_DESTINATION, topic)
+            scope.span.set_tag(tags.SPAN_KIND, tags.SPAN_KIND_PRODUCER)
+            scope.span.set_tag(tags.COMPONENT, "amqp")
             await self.exchange.publish(
                 Message(body=msg.encode(), headers=headers),
                 routing_key=topic,

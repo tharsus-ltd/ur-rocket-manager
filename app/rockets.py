@@ -154,6 +154,10 @@ async def update_rocket(rocket: Rocket, username: str) -> Rocket:
         if rocket.fuel < 0:
             rocket.fuel = 0
             rocket.status = "Out of fuel 😭⛽"
+            await Handlers().send_msg(json.dumps({
+                "rocket": rocket.dict(),
+                "username": username
+            }), f"rocket.{rocket.id}.nofuel")
 
     # Update max altitude
     if rocket.altitude > rocket.max_altitude:
